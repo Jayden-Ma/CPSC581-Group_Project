@@ -1,22 +1,112 @@
 import socket
+import cv2
+import mediapipe as mp
+import math
+import time
 
-PI_IP = "10.0.0.27"   # <-- change to your Pi's IP
+PI_IP = "10.0.0.27"
 PORT = 5000
 
-print(f"Connecting to {PI_IP}:{PORT}...")
+# Connect to Pi
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((PI_IP, PORT))
+print("Connected to PiCar-X!")
+print("Use your hands like a steering wheel. Press 'q' to quit.\n")
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((PI_IP, PORT))
-    print("Connected! Type commands (forward, backward, left, right).")
-    print("Press Ctrl+C to quit.\n")
+# MediaPipe setup
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(
+    max_num_hands=2,
+    min_detection_confidence=0.6,
+    min_tracking_confidence=0.6
+)
+mp_draw = mp.solutions.drawing_utils
 
-    try:
-        while True:
-            cmd = input("> ").strip()
-            if cmd == "":
-                continue
+# Helper: compute angle of wrist-to-wrist line
+def compute_angle(left, right):
+    dx = right.x - left.x
+    dy = right.y - left.y
+    angle = math.degrees(math.atan2(dy, dx))
+    return angle
 
+cap = cv2.VideoCapture(0)
+
+last_sent = ""
+cooldown = 0
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    imgRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hands.process(imgRGB)
+
+    if results.multi_hand_landmarks and len(results.multi_hand_landmarks) == 2:
+        # Identify left and right hands by x-position
+        hand1, hand2 = results.multi_hand_landmarks
+        if hand1.landmark[0].x < hand2.landmark[0].x:
+            left_hand = hand1
+            right_hand = hand2
+        else:
+            left_hand = hand2
+            right_hand = hand1
+
+        # Get wrist landmarks
+        lw = left_hand.landmark[0]
+        rw = right_hand.landmark[0]
+
+        # Draw hands
+        mp_draw.draw_landmarks(frame, left_hand, mp_hands.HAND_CONNECTIONS)
+        mp_draw.draw_landmarks(frame, right_hand, mp_hands.HAND_CONNECTIONS)
+
+        # Compute wheel rotation
+        angle = compute_angle(lw, rw)
+
+        # Normalize angle to -90..+90
+        if angle > 90:
+            angle -= 180
+        if angle < -90:
+            angle += 180
+
+        # Display angle
+        cv2.putText(frame, f"Wheel Angle: {int(angle)}", (20, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+
+        # Decide commands
+        cmd = None
+        if abs(angle) < 15:
+            cmd = "forward"
+        elif angle > 15:
+            cmd = "right"
+        elif angle < -15:
+            cmd = "left"
+
+        # Send command only if it's new
+        if cmd and cmd != last_sent and cooldown <= 0:
             s.sendall(cmd.encode())
+            print("Sent:", cmd)
+            last_sent = cmd
+            cooldown = 1  # small delay to reduce spam
 
-    except KeyboardInterrupt:
-        print("\nDisconnected.")
+    else:
+        cv2.putText(frame, "Show Both Hands!", (20, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+        # Auto-stop if hands disappear
+        if last_sent != "stop":
+            s.sendall("stop".encode())
+            last_sent = "stop"
+            print("Sent: stop")
+
+    # Reduce cooldown
+    cooldown -= 1
+
+    cv2.imshow("Steering Control", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Cleanup
+cap.release()
+cv2.destroyAllWindows()
+s.close()

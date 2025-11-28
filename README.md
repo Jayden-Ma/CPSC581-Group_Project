@@ -1,0 +1,22 @@
+Group project: Jayden Ma, Lucas, Manpreet 
+
+Project Description: We programmed a remote controlled Pi Crawler that can be controlled using voice commands and hand gestures. The novelty of the system is in our approach. We wanted to design a system where you could easily control the robot from anywhere in the world. To do this, we made the robot a server that client computers can connect to and control the movement of the device.
+
+Another novel feature is the ability to steer the robot with just your voice or hand gestures. There are very few systems that allow users to control remote robits and steer them in real time. 
+
+Voice Commands:
+All voice commands must begin with the activation phrase "Hello Spider". Once the activation phrase has been said, the robot begins listening for commands. The commands we have implemented include:
+- move forward
+- move left
+- move right
+- move backwards
+- start moving
+
+
+The user can say "Stop" to cancel the current action.
+
+Gestures: We really wanted to go all in for the gesture implementation. Most gestures are unintuitive and require existing knowledge to use the system. They also don't provide fine tuned steering and adjustment. Here is how it currently works, 
+
+How to get it running
+
+Is there a way to upload what the robot sees in real time to the client? 
