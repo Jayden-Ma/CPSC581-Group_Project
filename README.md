@@ -5,7 +5,8 @@
 
 ### Running the Code:
 + First, ensure that the Pi Robot and the client computer are on the same local area network.
-+ Next, start the server on the Pi Crawler by navigating to home -> pi -> ezb-pi -> workspace. Then run the python server code using `sudo python3 PiServer.py`
++ Also, ensure that mediapipe is properly installed in the project virtual environment
++ To start the server on the Pi Crawler by navigating to home -> pi -> ezb-pi -> workspace. Then run the python server code using `sudo python3 PiServer.py`
     + You can SSH onto the crawler using `ssh pi@<crawlers IP addr>` to make this step easier
 + Now run the client code on the client computer (can be through an IDE or on the command line)
 + Once connected, you can begin using the hand gestures.
